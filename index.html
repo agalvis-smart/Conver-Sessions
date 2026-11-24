@@ -77,6 +77,23 @@
   .doc small{color:var(--muted)}
   .empty{padding:28px;text-align:center;color:var(--muted);background:#fff;border:1px dashed var(--line);border-radius:var(--radius)}
 
+  /* Skills */
+  .help{display:flex;gap:18px;align-items:flex-start;background:#fff;border:1px solid var(--line);border-left:5px solid var(--brand);border-radius:var(--radius);padding:16px 20px;margin-bottom:18px;box-shadow:var(--shadow)}
+  .help h3{margin:0 0 6px;font-size:1rem;color:var(--brand)}
+  .help ol{margin:0;padding-left:20px;font-size:.9rem;color:var(--ink)}
+  .help ol li{margin:3px 0}
+  .help .side{margin-left:auto;flex:none;display:flex;flex-direction:column;gap:8px}
+  .skills{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:40px}
+  .skill{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:10px}
+  .skill.hidden{display:none}
+  .skill .top{display:flex;gap:12px;align-items:center}
+  .skill .md{width:44px;height:44px;border-radius:10px;background:#1f1f1f;color:#fff;display:grid;place-items:center;font-weight:800;font-size:.8rem;flex:none;font-family:ui-monospace,Menlo,monospace}
+  .skill b{display:block;font-size:.95rem;word-break:break-word}
+  .skill small{color:var(--muted);font-size:.8rem}
+  .skill .acts{display:flex;gap:8px;margin-top:auto}
+  .skill .acts .btn{flex:1;justify-content:center}
+  @media (max-width:640px){.help{flex-direction:column}.help .side{margin-left:0;flex-direction:row}}
+
   footer{padding:24px 0 40px;color:var(--muted);font-size:.85rem;text-align:center}
 
   /* Modal */
@@ -244,7 +261,7 @@
 <script>
 /* ===================== CONFIGURACIÓN ===================== */
 // Pega aquí la URL /exec de tu Apps Script para que funcione para todos los docentes:
-const SCRIPT_URL = '';
+const SCRIPT_URL = 'https://script.google.com/a/macros/smartidiomas.edu.co/s/AKfycbxxTNjIuoUVkNrJBIMqMxr_MSbzCm8znw7G8ef6QnP98mfHav09ykcDP7QfuXI_3MgU/exec';
 /* ========================================================= */
 
 const store = {
@@ -280,11 +297,13 @@ const AREAS = [
   ]}
 ];
 const MASTER = '00_DOCUMENTOS_MAESTROS_Y_GUIAS';
+const SKILLS = '04_SKILLS_IA';
 const MASTER_FALLBACK = ['Instructivo_Metodologico_SmartZone_v1.0.pdf','INT-FOR-118_Plantilla_Oficial_V2.docx',
   'System_Prompt_SmartZone_CoDesigner_v1.0.docx','Guia_Rapida_Uso_IA_y_Repositorio_1Pag.pdf'];
 
 let FOLDERS = {};      // path -> Drive folder id (lo entrega el Apps Script)
 let MASTER_DOCS = null;
+let SKILL_DOCS = null;
 let MAX_MB = 15;
 let currentTab = store.get('tab') || '01_ENGLISH';
 let pickedFile = null;
@@ -298,15 +317,16 @@ const connected = () => Object.keys(FOLDERS).length > 0;
 
 /* ---------- Render ---------- */
 function renderTabs(){
-  const tabs = [...AREAS.map(a => [a.key, a.tab]), [MASTER, '📚 Documentos maestros']];
+  const tabs = [...AREAS.map(a => [a.key, a.tab]), [MASTER, '📚 Documentos maestros'], [SKILLS, '🤖 Skills IA']];
   $('tabs').innerHTML = tabs.map(([k,l]) =>
     `<button class="tab" role="tab" aria-selected="${k===currentTab}" onclick="setTab('${k}')">${l}</button>`).join('') +
-    `<input class="search" id="q" placeholder="Buscar club…" oninput="filterRows(this.value)">`;
+    `<input class="search" id="q" placeholder="${currentTab===SKILLS?'Buscar skill…':'Buscar club…'}" oninput="filterRows(this.value)">`;
 }
 function setTab(k){ currentTab = k; store.set('tab', k); renderTabs(); renderView(); }
 
 function renderView(){
   if (currentTab === MASTER) return renderMaster();
+  if (currentTab === SKILLS) return renderSkills();
   const area = AREAS.find(a => a.key === currentTab) || AREAS[0];
   $('view').innerHTML = `<div class="grid">${area.levels.map(lv => {
     const lp = pathOf(area.key, lv.key);
@@ -351,9 +371,48 @@ function renderMaster(){
     ${connected() && MASTER_DOCS && !MASTER_DOCS.length ? '<div class="empty">La carpeta está vacía. Coordinación debe subir aquí los documentos maestros.</div>' : ''}`;
 }
 
+function renderSkills(){
+  const u = driveUrl(SKILLS);
+  const list = SKILL_DOCS || [];
+  const pretty = n => n.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ');
+  const fmtSize = b => !b ? '' : b < 1024 ? b+' B' : (b/1024).toFixed(1)+' KB';
+  const dl = d => d.id ? 'https://drive.google.com/uc?export=download&id=' + encodeURIComponent(d.id) : d.url;
+  $('view').innerHTML = `
+    <div class="help">
+      <div>
+        <h3>¿Cómo usar una skill en Gemini?</h3>
+        <ol>
+          <li>Descarga el archivo <code>.md</code> de la skill que necesites.</li>
+          <li>Abre <b>gemini.google.com</b> y, en el chat, toca <b>＋</b> → <b>Subir archivo</b> y adjunta el <code>.md</code>.</li>
+          <li>Escribe tu solicitud (ej.: “Usa esta skill para crear el planeador de Talk Time A1-A2 sobre comida”).</li>
+          <li>Para no subirla cada vez, crea un <b>Gem</b> y agrega el <code>.md</code> en <b>Conocimiento</b>.</li>
+        </ol>
+      </div>
+      <div class="side">
+        <a class="btn ${u?'':'disabled'}" href="${u||'#'}" target="_blank" rel="noopener">📁 Carpeta en Drive ↗</a>
+        <a class="btn" href="https://gemini.google.com/app" target="_blank" rel="noopener">✨ Abrir Gemini ↗</a>
+      </div>
+    </div>
+    ${!connected() ? '<div class="empty">Las skills aparecerán aquí cuando la página esté conectada a Google Drive.</div>'
+      : !list.length ? '<div class="empty">Aún no hay skills. Coordinación debe subir los archivos <code>.md</code> a la carpeta <b>04_SKILLS_IA</b> en Drive.</div>'
+      : `<div class="skills">${list.map(d => {
+          const ext = (d.name.split('.').pop()||'').toLowerCase();
+          const date = d.updated ? new Date(d.updated).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'}) : '';
+          return `<article class="skill" data-q="${esc(d.name.toLowerCase())}">
+            <div class="top"><span class="md">.${esc(ext||'md').slice(0,4)}</span>
+              <div><b>${esc(pretty(d.name))}</b><small>${esc(d.name)}${d.size?' · '+fmtSize(d.size):''}${date?' · '+date:''}</small></div></div>
+            ${d.note ? `<small>${esc(d.note)}</small>` : ''}
+            <div class="acts">
+              <a class="btn sm primary" href="${esc(dl(d))}" target="_blank" rel="noopener">⬇ Descargar</a>
+              <a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Ver en Drive ↗</a>
+            </div></article>`;
+        }).join('')}</div>`}`;
+  const q = $('q'); if (q && q.value) filterRows(q.value);
+}
+
 function filterRows(q){
   q = q.trim().toLowerCase();
-  document.querySelectorAll('.row').forEach(r => r.classList.toggle('hidden', q && !r.dataset.q.includes(q)));
+  document.querySelectorAll('.row, .skill').forEach(r => r.classList.toggle('hidden', q && !r.dataset.q.includes(q)));
 }
 
 function setStatus(kind, html){ $('status').className = 'status ' + kind; $('status').innerHTML = '<span class="dot"></span><span>'+html+'</span>'; }
@@ -362,7 +421,7 @@ function setStatus(kind, html){ $('status').className = 'status ' + kind; $('sta
 async function connect(refresh){
   const url = apiUrl();
   if (!url){
-    FOLDERS = {}; MASTER_DOCS = null;
+    FOLDERS = {}; MASTER_DOCS = null; SKILL_DOCS = null;
     setStatus('warn', 'Aún no hay conexión con Google Drive. Coordinación debe pegar la URL del Apps Script en <b>⚙ Configuración</b>.');
     afterConnect(); return false;
   }
@@ -371,11 +430,11 @@ async function connect(refresh){
     const r = await fetch(url + (url.includes('?')?'&':'?') + (refresh?'refresh=1':'t='+Date.now()));
     const d = await r.json();
     if (!d.ok) throw new Error(d.error || 'Respuesta inválida');
-    FOLDERS = d.folders || {}; MASTER_DOCS = d.masterDocs || []; MAX_MB = d.maxMB || 15;
+    FOLDERS = d.folders || {}; MASTER_DOCS = d.masterDocs || []; SKILL_DOCS = d.skills || []; MAX_MB = d.maxMB || 15;
     setStatus('ok', `Conectado a Google Drive · ${Object.keys(FOLDERS).length - 1} carpetas sincronizadas.`);
     afterConnect(); return true;
   } catch(e){
-    FOLDERS = {}; MASTER_DOCS = null;
+    FOLDERS = {}; MASTER_DOCS = null; SKILL_DOCS = null;
     setStatus('warn', 'No se pudo conectar con el Apps Script (' + esc(e.message) + '). Revisa la URL en ⚙ Configuración y que el acceso sea “Cualquier persona”.');
     afterConnect(); return false;
   }
